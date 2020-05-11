@@ -1,4 +1,11 @@
-FROM centos:7
+pxc-80/Dockerfile FROM golang:1.13 AS go_builder
+WORKDIR /go/src/github.com/percona/percona-openshift/src
+
+RUN go get k8s.io/apimachinery/pkg/util/sets \
+    && curl -Lf -o /go/src/github.com/percona/percona-openshift/src/peer-list.go https://raw.githubusercontent.com/Percona-Lab/percona-openshift/master/src/peer-list.go \
+    && go build peer-list.go
+
+FROM centos:7 AS centos7
 
 LABEL name="Percona XtraDB Cluster" \
 	release="8.0" \
@@ -84,6 +91,7 @@ RUN rmdir /etc/my.cnf.d \
 	&& echo '!includedir /etc/percona-xtradb-cluster.conf.d/' >> /etc/my.cnf
 
 COPY dockerdir /
+COPY --from=go_builder /go/src/github.com/percona/percona-openshift/src/peer-list /usr/bin/
 RUN mkdir -p /etc/mysql/conf.d/ /var/log/mysql /var/lib/mysql /docker-entrypoint-initdb.d /etc/percona-xtradb-cluster.conf.d \
 	&& chown -R 1001:1001 /etc/mysql/ /var/log/mysql /var/lib/mysql /docker-entrypoint-initdb.d /etc/percona-xtradb-cluster.conf.d \
 	&& chmod -R g=u /etc/mysql/ /var/log/mysql /var/lib/mysql /docker-entrypoint-initdb.d /etc/percona-xtradb-cluster.conf.d
